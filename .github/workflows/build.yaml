@@ -1,0 +1,84 @@
+name: Docker build and Push to ECR
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  AWS_REGION: eu-west-1
+  # ECR configuration
+  ECR_REPOSITORY: fluffy-palm-tree-app
+  # ECS configuration
+  ECS_SERVICE: congenial-memory-service
+  ECS_CLUSTER: congenial-memory-cluster
+  ECS_TASK_DEF: congenial-memory-family
+  ECS_CONTAINER: congenial-memory-app
+
+jobs:
+  docker-build:
+    name: Docker Build , Push and Deploy to ECS Fargate
+    # The ubuntu-latest label currently uses the Ubuntu 22.04 runner image. -> https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        # This action checks-out your repository -> docs https://github.com/actions/checkout
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        # Configure AWS credential environment variables -> docs https://github.com/aws-actions/configure-aws-credentials 
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          # Normally best way would be using GitHub's OIDC provider to get short-lived credentials needed for your actions. 
+          # Specifying role-to-assume without providing an aws-access-key-id
+          # as per this doc https://github.com/aws-actions/configure-aws-credentials 
+
+          # But for this task we've using my user key / access key
+          aws-access-key-id:  ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key:  ${{ secrets.AWS_SECRET_KEY_ID }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        # Logs in the local Docker client to one or more Amazon ECR Private registries or an Amazon ECR Public registry.
+        # https://github.com/aws-actions/amazon-ecr-login
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build, tag, and push docker image to Amazon ECR
+        id: build-image
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: ${{ env.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ github.sha }}
+        # building and pushing seems to be okay with my user, but list images operation is not allowed, missing ecr:ListImages action. 
+        run: |
+          docker build -f Dockerfile-timestamp -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -t $REGISTRY/$REPOSITORY:latest .
+          docker push --all-tags $REGISTRY/$REPOSITORY
+          echo "image=$REGISTRY/$REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+        # We need to download the task definition of AWS ECS service that we've created earlier. Please note that we need to specify the family of task-definition
+      - name: Download task definition
+        env:
+          ECS_TASK_DEF: ${{ env.ECS_TASK_DEF }}
+        run: |
+          aws ecs describe-task-definition --task-definition $ECS_TASK_DEF --query taskDefinition > task-definition.json
+
+      - name: Fill in the new image ID in the AWS ECS task definition
+        id: task-def
+        # Inserts a container image URI into an Amazon ECS task definition JSON file.
+        # https://github.com/aws-actions/amazon-ecs-render-task-definition
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: ${{ env.ECS_CONTAINER }}
+          image: ${{ steps.build-image.outputs.image }}
+
+      - name: Deploy AWS ECS task definition
+        # Registers an Amazon ECS task definition and deploys it to an ECS service.
+        # https://github.com/aws-actions/amazon-ecs-deploy-task-definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
