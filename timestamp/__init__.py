@@ -1,7 +1,31 @@
 from flask import Flask, request, jsonify
 import boto3
+import os
+
+def create_app():
+    """
+    Display a 'Timestamp' message.
+    """
+    app = Flask(__name__)
+
+    try:
+        os.makedirs(app.instance_path)
+    except OSError:
+        pass
+
+
+
+    return app
+
 
 app = Flask(__name__)
+
+@app.route("/")
+def hello():
+    """
+    Display a 'Timestamp' message.
+    """
+    return "Timestamp app Ver1"
 
 # Insert a timestamp into DynamoDB
 @app.route('/timestamp', methods=['POST'])
@@ -21,7 +45,7 @@ def insert_timestamp():
     return jsonify(response)
 
 # List all timestamps from DynamoDB
-@app.route('/')
+@app.route('/list')
 def list_timestamps():
     # Get all items from DynamoDB
     dynamodb = boto3.resource('dynamodb')

@@ -7,12 +7,12 @@ on:
 env:
   AWS_REGION: eu-west-1
   # ECR configuration
-  ECR_REPOSITORY: fluffy-palm-tree-app
+  ECR_REPOSITORY: fluffy-palm-tree
   # ECS configuration
-  ECS_SERVICE: congenial-memory-service
-  ECS_CLUSTER: congenial-memory-cluster
-  ECS_TASK_DEF: congenial-memory-family
-  ECS_CONTAINER: congenial-memory-app
+  ECS_SERVICE: fluffy-palm-tree-service
+  ECS_CLUSTER: fluffy-palm-tree-cluster
+  ECS_TASK_DEF: fluffy-palm-tree-family
+  ECS_CONTAINER: fluffy-palm-tree-app
 
 jobs:
   docker-build:
@@ -52,7 +52,7 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         # building and pushing seems to be okay with my user, but list images operation is not allowed, missing ecr:ListImages action. 
         run: |
-          docker build -f Dockerfile-timestamp -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -t $REGISTRY/$REPOSITORY:latest .
+          docker build -f Dockerfile -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -t $REGISTRY/$REPOSITORY:latest .
           docker push --all-tags $REGISTRY/$REPOSITORY
           echo "image=$REGISTRY/$REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
