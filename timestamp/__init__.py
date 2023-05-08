@@ -2,22 +2,6 @@ from flask import Flask, request, jsonify
 import boto3
 import os
 
-def create_app():
-    """
-    Display a 'Timestamp' message.
-    """
-    app = Flask(__name__)
-
-    try:
-        os.makedirs(app.instance_path)
-    except OSError:
-        pass
-
-
-
-    return app
-
-
 app = Flask(__name__)
 
 @app.route("/")
