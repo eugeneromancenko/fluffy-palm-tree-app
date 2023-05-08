@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Timestamp App V2</title>
+    <script>
+      // Set the timestamp input field to the current date and time
+      window.addEventListener("load", function() {
+        var now = new Date();
+        var timestampField = document.getElementById("timestamp");
+        timestampField.value = now.toISOString();
+      });
+    </script>
+  </head>
+  <body>
+    <h1>Timestamp App</h1>
+
+    {% if message %}
+      <p>{{ message }}</p>
+    {% endif %}
+
+    <form method="POST" action="/timestamp">
+      <label for="timestamp">Enter timestamp:</label>
+      <input type="text" id="timestamp" name="timestamp">
+      <button type="submit">Submit</button>
+    </form>
+
+    <form method="GET" action="/list">
+      <button type="submit">List all timestamps</button>
+    </form>
+
+    {% if timestamps %}
+      <h2>Timestamps:</h2>
+      <ul>
+        {% for timestamp in timestamps %}
+          <li>{{ timestamp }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+  </body>
+</html>
